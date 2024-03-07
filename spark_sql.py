@@ -1,14 +1,29 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.window import Window
+import os
+
+user = os.environ['mongo_u']
+pwd = os.environ['mongo_p']
+cluster = os.environ['mongo_c']
+
+
+mongodb_uri = f"mongodb+srv://{user}:{pwd}@{cluster}/?retryWrites=true&w=majority&appName=EpicMongo"
 
 # Create a SparkSession for MongoDB Altlas
 spark = SparkSession.builder \
     .appName("CrimeAnalysis") \
-    .config("spark.mongodb.input.uri", "mongodb+srv://<username>:<password>@<cluster>/<database>.<collection>") \
-    .config("spark.mongodb.output.uri", "mongodb+srv://<username>:<password>@<cluster>/<database>.<collection>") \
-    .config("spark.jars.packages", "org.mongodb.spark:mongo-spark-connector_2.12:3.0.1") \
+    .config("spark.mongodb.input.uri", mongodb_uri) \
+    .config("spark.mongodb.output.uri", mongodb_uri) \
     .getOrCreate()
+
+reader = spark.read.format("mongodb") \
+    .option("spark.mongodb.read.connection.uri", mongodb_uri) \
+    .option("spark.mongodb.write.connection.uri", mongodb_uri) \
+    .option("database", "SanFrancisco")
+
+# Load the data from MongoDB
+df = reader.option("collection", "sfpd_incidents").load()
 
 # Load the data from MongoDB
 df = spark.read.format("com.mongodb.spark.sql.DefaultSource").load()
