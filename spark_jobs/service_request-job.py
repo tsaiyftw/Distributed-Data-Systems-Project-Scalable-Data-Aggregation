@@ -2,6 +2,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.window import Window
+from pyspark.sql.functions import substring, col, expr, row_number, sum as spark_sum
 
 mongodb_uri = ""
 

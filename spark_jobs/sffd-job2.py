@@ -3,14 +3,6 @@ from pyspark.sql.functions import *
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import year, month, first, sum, col, lit, concat, to_timestamp, expr
 
-# Create SparkSession
-spark = SparkSession.builder \
-    .appName("MongoDB to Spark SQL") \
-    .getOrCreate()
-
-# Read MongoDB data into DataFrame
-df = spark.read.format("mongo").load("mongodb://host:port/database.collection")
-
 
 mongodb_uri = ""
 
@@ -68,12 +60,12 @@ df = df.withColumn("percentage", expr(
     "top_call_type_count / total_calls * 100"))
 
 # Select the required columns and show the DataFrame
-year_month_top_call_df = df.select(
-    "year", "month", "top_call_type", "top_call_type_count", "percentage").show()
+df.select(
+    "year", "month", "top_call_type", "top_call_type_count", "percentage").show(truncate=False)
 
 # Write our outputs to MongoDB
 (
-    year_month_top_call_df .write.format("mongodb")
+    df.write.format("mongodb")
     .mode("append")
     .option("connection.uri", mongodb_uri)
     .option("database", "SanFrancisco")
