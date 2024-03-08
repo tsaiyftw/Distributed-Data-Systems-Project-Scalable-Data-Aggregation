@@ -1,9 +1,9 @@
 # Analysis 5: The top 1 category of 311 service request every year from Year 2008
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
+from pyspark.sql.functions import col, expr, row_number, substring
 from pyspark.sql.functions import sum as spark_sum
 from pyspark.sql.window import Window
-from pyspark.sql.functions import substring, col, expr, row_number, sum as spark_sum
 
 mongodb_uri = ""
 
