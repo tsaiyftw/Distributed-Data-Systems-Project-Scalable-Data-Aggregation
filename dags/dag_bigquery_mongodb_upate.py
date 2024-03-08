@@ -1,16 +1,13 @@
+import datetime
+import json
+from typing import Dict
+
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryGetDataOperator,
-    BigQueryInsertJobOperator,
-)
+    BigQueryGetDataOperator, BigQueryInsertJobOperator)
 from airflow.providers.mongo.hooks.mongo import MongoHook
-
-import datetime
-import json
-
-from typing import Dict
 
 # DAG for periodic updates of MongoDB collections from public BigQuery datasets
 # datasets:
@@ -53,32 +50,36 @@ with DAG(
         date = str(recent_date_json[field_name])
         return date
 
-    def insert_many_records(collection_name: str, data: Dict[str, list], **context) -> None:
+    def insert_many_records(
+        collection_name: str, data: Dict[str, list], **context
+    ) -> None:
         """
         Connects to MongoDB and inserts many records into the specified collection.
         The data is expected to be in the format {columnName: [row1, row2, row3...]}.
         Each key-value pair in the data dictionary corresponds to a column and its values across rows.
-        
+
         :param collection_name: The name of the MongoDB collection to insert records into.
         :param data: The data to insert, formatted as {columnName: [row1, row2, row3...]}.
         """
         # Establish connection to MongoDB
         hook = MongoHook(mongo_conn_id="mongo_default")
         client = hook.get_conn()
-        db = client.SanFrancisco 
+        db = client.SanFrancisco
         collection = db[collection_name]
         print(f"Preparing to insert data into {collection_name}")
         print(f"Connected to MongoDB - {client.server_info()}")
 
         documents = data
-        
+
         # Insert the documents into the collection
         if documents:
             result = collection.insert_many(documents)
-            print(f"Inserted {len(result.inserted_ids)} records into {collection_name} collection.")
+            print(
+                f"Inserted {len(result.inserted_ids)} records into {collection_name} collection."
+            )
         else:
             print("No documents to insert.")
-        
+
         # Close the MongoDB connection
         client.close()
 
@@ -157,24 +158,40 @@ with DAG(
     )
 
     push_service_data_mongo = PythonOperator(
-        task_id = "push_service_data_mongo",
+        task_id="push_service_data_mongo",
         python_callable=insert_many_records,
-        op_kwargs = {"collection_name": "service_requests", "data": pull_temp_bq_service.output},
-        do_xcom_push = True,
-        dag = dag
+        op_kwargs={
+            "collection_name": "service_requests",
+            "data": pull_temp_bq_service.output,
+        },
+        do_xcom_push=True,
+        dag=dag,
     )
 
     push_sffd_data_mongo = PythonOperator(
-        task_id = "push_sffd_data_mongo",
+        task_id="push_sffd_data_mongo",
         python_callable=insert_many_records,
-        op_kwargs = {"collection_name": "sffd_service_calls", "data": pull_temp_bq_sffd.output},
-        do_xcom_push = True,
-        dag = dag
+        op_kwargs={
+            "collection_name": "sffd_service_calls",
+            "data": pull_temp_bq_sffd.output,
+        },
+        do_xcom_push=True,
+        dag=dag,
     )
 
-    do_1 = EmptyOperator(task_id = "dummy_op_1")
+    do_1 = EmptyOperator(task_id="dummy_op_1")
 
     # task execution order
     do_1 >> [get_latest_service_date, get_latest_sffd_date]
-    get_latest_service_date >> create_temp_bq_service >> pull_temp_bq_service >> push_service_data_mongo
-    get_latest_sffd_date >> create_temp_bq_sffd >> pull_temp_bq_sffd >> push_sffd_data_mongo
+    (
+        get_latest_service_date
+        >> create_temp_bq_service
+        >> pull_temp_bq_service
+        >> push_service_data_mongo
+    )
+    (
+        get_latest_sffd_date
+        >> create_temp_bq_sffd
+        >> pull_temp_bq_sffd
+        >> push_sffd_data_mongo
+    )

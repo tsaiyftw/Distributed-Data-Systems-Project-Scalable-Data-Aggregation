@@ -1,8 +1,7 @@
-from pyspark.sql.window import Window
-from pyspark.sql.functions import *
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import year, month, first, sum, col, lit, concat, to_timestamp, expr
-
+from pyspark.sql.functions import *
+from pyspark.sql.functions import (col, expr, first, lit, month, sum,
+                                   to_timestamp, year)
 
 mongodb_uri = ""
 
@@ -49,23 +48,25 @@ df = df.orderBy("year", "month", col("count").desc())
 df = df.groupBy("year", "month").agg(
     first("call_type").alias("top_call_type"),
     first("count").alias("top_call_type_count"),
-    sum("count").alias("total_calls")
+    sum("count").alias("total_calls"),
 )
 
 # Sort by year and month
 df = df.orderBy("year", "month")
 
 # Calculate percentage
-df = df.withColumn("percentage", expr(
-    "top_call_type_count / total_calls * 100"))
+df = df.withColumn("percentage", expr("top_call_type_count / total_calls * 100"))
 
 # Select the required columns and show the DataFrame
-df.select(
-    "year", "month", "top_call_type", "top_call_type_count", "percentage").show(truncate=False)
+year_month_top_call_df = df.select(
+    "year", "month", "top_call_type", "top_call_type_count", "percentage"
+)
+
+year_month_top_call_df.show()
 
 # Write our outputs to MongoDB
 (
-    df.write.format("mongodb")
+    year_month_top_call_df.write.format("mongodb")
     .mode("append")
     .option("connection.uri", mongodb_uri)
     .option("database", "SanFrancisco")
